@@ -9,7 +9,6 @@ import {
   resetMethods, 
   resetCategories, 
   resetLogs, 
-  resetPrepItems,
   resetAll 
 } from "./server-actions";
 
@@ -69,13 +68,9 @@ export default async function Page({ searchParams }: { searchParams?: Promise<Re
         </form>
 
         <form action={resetInventory}>
-          <ResetAction label="Inventory" description="Deletes all inventory items and movements." />
+          <ResetAction label="Inventory" description="Deletes all inventory items, prep items, and movements." />
         </form>
         
-        <form action={resetPrepItems}>
-          <ResetAction label="Prep Items" description="Deletes all prep items, recipes, and production history." />
-        </form>
-
         <form action={resetMenu}>
           <ResetAction label="Menu & Recipes" description="Deletes all menu items and their recipes." />
         </form>
