@@ -5,6 +5,7 @@ import Link from "next/link";
 import { InventoryItemActions } from "../actions-client";
 import { formatBaseQuantity } from "@/lib/baseUnitDisplay";
 import { fmtCurrencyNaira } from "@/lib/format";
+import PrepInventoryTable, { PrepItem } from "@/app/prep/PrepInventoryTable";
 
 type InventoryItem = {
   id: string;
@@ -19,6 +20,7 @@ type InventoryItem = {
   costPerBaseUnit?: number | null;
   isActive: boolean;
   isUsed: boolean;
+  type: "RAW" | "PACKAGING" | "PREP";
 };
 
 function getDisplayValues(item: InventoryItem) {
@@ -30,7 +32,7 @@ function getDisplayValues(item: InventoryItem) {
     // Actually, if legacy data has no baseQuantity, we might be in trouble. 
     // But assuming migration happened or we trust baseQuantity.
   
-  const displayQty = formatBaseQuantity(baseQty, item.baseUnit);
+  const displayQty = formatBaseQuantity(baseQty, item.baseUnit || item.unit || "pcs");
   
   // Cost should also be per base unit
   const displayCost = Number(item.costPerBaseUnit) || 0;
@@ -44,47 +46,119 @@ function getDisplayValues(item: InventoryItem) {
 
 type InventoryListProps = {
   initialItems: InventoryItem[];
+  prepItems?: PrepItem[];
+  restocked?: boolean;
 };
 
-export default function InventoryList({ initialItems }: InventoryListProps) {
+export default function InventoryList({ initialItems, prepItems = [], restocked }: InventoryListProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState<"RAW" | "PACKAGING" | "PREP">("RAW");
 
-  const filteredItems = initialItems.filter((item) =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredItems = initialItems.filter((item) => {
+    // 1. Tab filtering (VIEW ONLY)
+    if (item.type !== activeTab) return false;
+
+    // 2. Search filtering
+    if (searchQuery && !item.name.toLowerCase().includes(searchQuery.toLowerCase())) {
+      return false;
+    }
+    
+    return true;
+  });
+
+  const filteredPrepItems = prepItems.filter(item => 
+    !searchQuery || item.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold">Inventory</h1>
+          <div className="text-sm text-muted-foreground">Manage stock levels and costs.</div>
+        </div>
+        <Link
+          className="hidden lg:inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2"
+          href={activeTab === "PREP" ? "/prep/new" : `/inventory/new?type=${activeTab}`}
+        >
+          {activeTab === "PREP" ? "Add Prep Item" : `Add ${activeTab === "PACKAGING" ? "Packaging" : "Inventory"} Item`}
+        </Link>
+      </div>
+
+      <div className="flex border-b">
+        <div className="flex space-x-6">
+          <button
+            onClick={() => setActiveTab("RAW")}
+            className={`px-2 py-2 text-sm font-medium transition-colors ${
+              activeTab === "RAW"
+                ? "border-b-2 border-primary"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Raw Ingredients
+          </button>
+          <button
+            onClick={() => setActiveTab("PACKAGING")}
+            className={`px-2 py-2 text-sm font-medium transition-colors ${
+              activeTab === "PACKAGING"
+                ? "border-b-2 border-primary"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Packaging Materials
+          </button>
+          <button
+            onClick={() => setActiveTab("PREP")}
+            className={`px-2 py-2 text-sm font-medium transition-colors ${
+              activeTab === "PREP"
+                ? "border-b-2 border-primary"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Prep Items
+          </button>
+        </div>
+      </div>
+
+      {restocked && (
+        <div className="border border-success/20 bg-success/15 text-success p-3 rounded-md">
+          Inventory restocked successfully.
+        </div>
+      )}
+
       <div className="relative">
         <input
           type="text"
-          placeholder="Search inventory items..."
+          placeholder={`Search ${activeTab === "RAW" ? "raw ingredients" : activeTab === "PACKAGING" ? "packaging" : "prep items"}...`}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
         />
       </div>
 
-      {filteredItems.length === 0 ? (
-        <div className="py-12 flex items-center justify-center">
-          <div className="text-center space-y-2">
-            <div className="text-lg font-medium">No inventory items found</div>
-            <div className="text-muted-foreground">
-              {searchQuery ? "Try adjusting your search." : "Add inventory to track stock levels accurately."}
-            </div>
-            {!searchQuery && (
-              <Link
-                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2 mt-2"
-                href="/inventory/new"
-              >
-                Add Inventory Item
-              </Link>
-            )}
-          </div>
-        </div>
+      {activeTab === "PREP" ? (
+        <PrepInventoryTable items={filteredPrepItems} />
       ) : (
-        <>
-          <div className="hidden lg:block overflow-x-auto">
+        filteredItems.length === 0 ? (
+          <div className="py-12 flex items-center justify-center">
+            <div className="text-center space-y-2">
+              <div className="text-lg font-medium">No {activeTab.toLowerCase()} items found</div>
+              <div className="text-muted-foreground">
+                {searchQuery ? "Try adjusting your search." : `Add ${activeTab.toLowerCase()} to track stock.`}
+              </div>
+              {!searchQuery && (
+                <Link
+                  className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2 mt-2"
+                  href={`/inventory/new?type=${activeTab}`}
+                >
+                  Add {activeTab === "PACKAGING" ? "Packaging" : "Inventory"} Item
+                </Link>
+              )}
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="hidden lg:block overflow-x-auto">
             <table className="w-full caption-bottom text-sm border border-border">
               <thead>
                 <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
@@ -190,7 +264,7 @@ export default function InventoryList({ initialItems }: InventoryListProps) {
             })}
           </div>
         </>
-      )}
+      ))}
     </div>
   );
 }

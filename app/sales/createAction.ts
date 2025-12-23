@@ -123,7 +123,7 @@ export async function createSale(
 
     // Fetch inventory items upfront to handle unit conversions
     const invIds = [...allInventoryItemIds];
-    const invMap = new Map<string, { id: string; name: string; unit: string; baseUnit: string; unitMultiplier: number; quantity: number; baseQuantity: number | null }>();
+    const invMap = new Map<string, { id: string; name: string; unit: string; baseUnit: string; unitMultiplier: number; quantity: number; baseQuantity: number | null; type: string }>();
     
     if (invIds.length > 0) {
       const invRows = await db.select().from(inventoryItems).where(inArray(inventoryItems.id, invIds));
@@ -136,6 +136,7 @@ export async function createSale(
           unitMultiplier: Number(row.unitMultiplier) || 1,
           quantity: Number(row.quantity),
           baseQuantity: row.baseQuantity ? Number(row.baseQuantity) : null,
+          type: row.type || "RAW",
         });
       }
     }

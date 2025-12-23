@@ -1,9 +1,9 @@
 import { db } from "@/lib/db";
-import { inventoryItems, inventoryMovements } from "@/db/schema/inventory";
+import { inventoryItems } from "@/db/schema/inventory";
 import { recipeItems } from "@/db/schema/menu";
-import { prepRecipes } from "@/db/schema/prep";
+import { prepRecipes, prepItems, prepInventory } from "@/db/schema/prep";
 import Link from "next/link";
-import { eq, count } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import InventoryList from "./_components/InventoryList";
 
 export const dynamic = "force-dynamic";
@@ -16,65 +16,106 @@ export default async function Page({
   const params = await searchParams;
   const restocked = params?.restocked === "1";
 
-  // Fetch all items sorted by name
-  const items = await db
+  // 1. Fetch ALL inventory items (Raw + Packaging)
+  const invItems = await db
     .select()
     .from(inventoryItems)
     .orderBy(inventoryItems.name);
 
-  // Calculate usage for each item
-  // Ideally this should be a single query or fewer queries, but for now loop is acceptable if N is small
-  // Optimization: Fetch all counts in bulk if possible, or just do it inside the loop for simplicity given constraints.
-  // Better approach: Get all IDs used in recipes, prep, movements.
-  
-  const usedInRecipes = await db.select({ id: recipeItems.inventoryItemId }).from(recipeItems);
-  const usedInPrep = await db.select({ id: prepRecipes.inventoryItemId }).from(prepRecipes);
+  // 2. Fetch ALL prep items (Prep)
+  // Join with prepInventory to get quantity/cost
+  const pItems = await db
+    .select({
+      id: prepItems.id,
+      name: prepItems.name,
+      baseUnit: prepItems.baseUnit,
+      isActive: prepItems.isActive,
+      baseQuantity: prepInventory.baseQuantity,
+      costPerBaseUnit: prepInventory.costPerBaseUnit,
+    })
+    .from(prepItems)
+    .leftJoin(prepInventory, eq(prepItems.id, prepInventory.prepItemId));
 
-  const usedSet = new Set<string>();
-  usedInRecipes.forEach(r => r.id && usedSet.add(r.id));
-  usedInPrep.forEach(p => usedSet.add(p.id));
+  // 3. Usage calculations
+  const rItems = await db.select({ invId: recipeItems.inventoryItemId, prepId: recipeItems.prepItemId }).from(recipeItems);
+  const pRecipes = await db.select({ invId: prepRecipes.inventoryItemId }).from(prepRecipes);
 
-  const itemsWithUsage = items.map(item => ({
-    ...item,
-    isUsed: usedSet.has(item.id)
-  }));
+  const invUsedSet = new Set<string>();
+  const prepUsedSet = new Set<string>();
+
+  rItems.forEach(r => {
+    if (r.invId) invUsedSet.add(r.invId);
+    if (r.prepId) prepUsedSet.add(r.prepId);
+  });
+  pRecipes.forEach(p => {
+    if (p.invId) invUsedSet.add(p.invId);
+  });
+
+  // 4. Combine into master list
+  const combinedItems = [
+    ...invItems.map((i) => ({
+      ...i,
+      type: i.type as "RAW" | "PACKAGING" | "PREP",
+      isUsed: invUsedSet.has(i.id),
+    })),
+    ...pItems.map((p) => ({
+      id: p.id,
+      name: p.name,
+      unit: p.baseUnit,
+      quantity: p.baseQuantity || 0,
+      costPerUnit: p.costPerBaseUnit || 0,
+      baseUnit: p.baseUnit,
+      baseQuantity: p.baseQuantity || 0,
+      costPerBaseUnit: p.costPerBaseUnit || 0,
+      isActive: p.isActive,
+      type: "PREP" as const,
+      isUsed: prepUsedSet.has(p.id),
+      displayUnit: null,
+      unitMultiplier: null,
+    })),
+  ].sort((a, b) => a.name.localeCompare(b.name));
+
+  // 5. Detailed Prep Items for Prep Manager Tab
+  const allPrepRecipes = await db
+    .select({
+      prepItemId: prepRecipes.prepItemId,
+      inventoryItemName: inventoryItems.name,
+      inventoryItemUnit: inventoryItems.unit,
+      requiredQuantity: prepRecipes.requiredBaseQuantity,
+      costPerUnit: inventoryItems.costPerUnit,
+    })
+    .from(prepRecipes)
+    .innerJoin(inventoryItems, eq(prepRecipes.inventoryItemId, inventoryItems.id));
+
+  const detailedPrepItems = pItems.map((p) => {
+    const recipes = allPrepRecipes
+      .filter((r) => r.prepItemId === p.id)
+      .map((r) => ({
+        inventoryItemName: r.inventoryItemName,
+        inventoryItemUnit: r.inventoryItemUnit,
+        requiredQuantity: r.requiredQuantity,
+        cost: r.requiredQuantity * (r.costPerUnit || 0),
+      }));
+
+    const usageCount = rItems.filter((r) => r.prepId === p.id).length;
+
+    return {
+      id: p.id,
+      name: p.name,
+      baseUnit: p.baseUnit,
+      isActive: p.isActive,
+      stock: p.baseQuantity || 0,
+      cost: p.costPerBaseUnit || 0,
+      usageCount,
+      recipe: recipes,
+    };
+  });
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold">Inventory</h1>
-          <div className="text-sm text-muted-foreground">Manage stock levels and costs.</div>
-        </div>
-        <Link
-          className="hidden lg:inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2"
-          href="/inventory/new"
-        >
-          Add Inventory Item
-        </Link>
-      </div>
-
-      <div className="flex border-b">
-        <div className="flex space-x-6">
-          <div className="border-b-2 border-primary px-2 py-2 text-sm font-medium">
-            Raw Ingredients
-          </div>
-          <Link 
-            href="/prep" 
-            className="px-2 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Prep Items
-          </Link>
-        </div>
-      </div>
-
-      {restocked && (
-        <div className="border border-success/20 bg-success/15 text-success p-3 rounded-md">
-          Inventory restocked successfully.
-        </div>
-      )}
-
-      <InventoryList initialItems={itemsWithUsage} />
-    </div>
+    <InventoryList 
+      initialItems={combinedItems} 
+      prepItems={detailedPrepItems}
+      restocked={restocked} 
+    />
   );
 }

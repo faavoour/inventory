@@ -9,6 +9,7 @@ import * as expenseCategoriesSchema from "../db/schema/expenseCategories";
 import * as alertSettingsSchema from "../db/schema/alertSettings";
 import * as paymentAllocationsSchema from "../db/schema/paymentAllocations";
 import * as prepSchema from "../db/schema/prep";
+import * as recurringSchema from "../db/schema/recurring";
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -31,5 +32,6 @@ export const db = drizzle(pool, {
     ...alertSettingsSchema,
     ...paymentAllocationsSchema,
     ...prepSchema,
+    ...recurringSchema,
   },
 });

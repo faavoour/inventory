@@ -80,18 +80,8 @@ export default async function PrepInventoryPage() {
           </Link>
       </div>
 
-      <div className="flex border-b">
-        <div className="flex space-x-6">
-          <Link 
-            href="/inventory" 
-            className="px-2 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Raw Ingredients
-          </Link>
-          <div className="border-b-2 border-primary px-2 py-2 text-sm font-medium">
-            Prep Items
-          </div>
-        </div>
+      <div className="hidden">
+        {/* Navigation removed as per requirement - Prep Page is now standalone or embedded */}
       </div>
 
       <PrepInventoryTable items={itemsWithRecipes} />

@@ -8,11 +8,12 @@ import { fmtCurrencyNaira } from "@/lib/format";
 export const dynamic = "force-dynamic";
 
 export default async function Page() {
-  const [invRows] = await Promise.all([
+  const [invRows, packRows] = await Promise.all([
     db.select().from(inventoryItems).where(eq(inventoryItems.type, "RAW")),
+    db.select().from(inventoryItems).where(eq(inventoryItems.type, "PACKAGING")),
   ]);
 
-  const items = invRows.map((r) => {
+  const processItems = (rows: typeof invRows) => rows.map((r) => {
     // Stored values (Base Units Only)
     // Strict Rule: Use baseQuantity and costPerBaseUnit.
     const baseQty = r.baseQuantity !== null ? Number(r.baseQuantity) : 0;
@@ -33,14 +34,22 @@ export default async function Page() {
     };
   });
 
-  const totalValueRaw = items.reduce((sum, it) => sum + it.totalValue, 0);
-  const totalItemsRaw = items.length;
+  const rawItems = processItems(invRows);
+  const packItems = processItems(packRows);
 
-  const totalValueAll = totalValueRaw;
+  const totalValueRaw = rawItems.reduce((sum, it) => sum + it.totalValue, 0);
+  const totalValuePack = packItems.reduce((sum, it) => sum + it.totalValue, 0);
+  
+  const totalItemsRaw = rawItems.length;
+  const totalItemsPack = packItems.length;
 
-  const sortedRaw = items.slice().sort((a, b) => b.totalValue - a.totalValue);
+  const totalValueAll = totalValueRaw + totalValuePack;
+
+  const sortedRaw = rawItems.slice().sort((a, b) => b.totalValue - a.totalValue);
+  const sortedPack = packItems.slice().sort((a, b) => b.totalValue - a.totalValue);
   
   const topCountRaw = Math.max(1, Math.floor(sortedRaw.length * 0.2));
+  const topCountPack = Math.max(1, Math.floor(sortedPack.length * 0.2));
 
   return (
     <div className="space-y-6">
@@ -98,7 +107,48 @@ export default async function Page() {
                       <td className="p-4 align-middle">{it.qtyString}</td>
                       <td className="p-4 align-middle">{fmtCurrencyNaira(it.costPerBaseUnit)}</td>
                       <td className="p-4 align-middle font-medium">{fmtCurrencyNaira(it.totalValue)}</td>
-                      <td className="p-4 align-middle">{share.toFixed(2)}%</td>
+                      <td className="p-4 align-middle text-muted-foreground">{share.toFixed(1)}%</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold">Packaging Materials</h2>
+        {sortedPack.length === 0 ? (
+          <div className="py-6 flex items-center justify-center border rounded-md">
+            <div className="text-center space-y-2">
+              <div className="text-muted-foreground">No packaging materials</div>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-md border border-border">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border bg-muted/50 transition-colors hover:bg-muted/50">
+                  <th className="h-10 px-4 text-left align-middle font-medium text-muted-foreground">Name</th>
+                  <th className="h-10 px-4 text-left align-middle font-medium text-muted-foreground">Quantity</th>
+                  <th className="h-10 px-4 text-left align-middle font-medium text-muted-foreground">Cost per Unit</th>
+                  <th className="h-10 px-4 text-left align-middle font-medium text-muted-foreground">Total Value</th>
+                  <th className="h-10 px-4 text-left align-middle font-medium text-muted-foreground">% Share</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedPack.map((it, idx) => {
+                  const share = totalValuePack > 0 ? (it.totalValue / totalValuePack) * 100 : 0;
+                  const highlight = idx < topCountPack;
+                  const rowCls = highlight ? "bg-muted/30" : "";
+                  return (
+                    <tr key={it.id} className={`border-b border-border transition-colors hover:bg-muted/50 ${rowCls}`}>
+                      <td className="p-4 align-middle">{it.name}</td>
+                      <td className="p-4 align-middle">{it.qtyString}</td>
+                      <td className="p-4 align-middle">{fmtCurrencyNaira(it.costPerBaseUnit)}</td>
+                      <td className="p-4 align-middle font-medium">{fmtCurrencyNaira(it.totalValue)}</td>
+                      <td className="p-4 align-middle text-muted-foreground">{share.toFixed(1)}%</td>
                     </tr>
                   );
                 })}

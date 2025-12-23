@@ -53,15 +53,22 @@ export default function AddRecipeItemForm({
           onChange={(e) => setSelectedInvId(e.target.value)}
         >
           <option value="">Select an item</option>
-          <optgroup label="Raw Inventory">
-            {inventory.filter(i => i.type === 'inventory').map((opt) => (
+          <optgroup label="Raw Ingredients">
+            {inventory.filter(i => i.type === 'RAW' || i.type === 'inventory').map((opt) => (
+              <option key={opt.id} value={opt.id}>
+                {opt.name} ({opt.unit})
+              </option>
+            ))}
+          </optgroup>
+          <optgroup label="Packaging Materials">
+            {inventory.filter(i => i.type === 'PACKAGING').map((opt) => (
               <option key={opt.id} value={opt.id}>
                 {opt.name} ({opt.unit})
               </option>
             ))}
           </optgroup>
           <optgroup label="Prep Items">
-            {inventory.filter(i => i.type === 'prep').map((opt) => (
+            {inventory.filter(i => i.type === 'PREP' || i.type === 'prep').map((opt) => (
               <option key={opt.id} value={opt.id}>
                 {opt.name} ({opt.unit})
               </option>

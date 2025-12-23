@@ -4,6 +4,8 @@ import { inventoryItems, inventoryMovements } from "@/db/schema/inventory";
 import { recipeItems, menuItems } from "@/db/schema/menu";
 import { prepItems, prepInventory } from "@/db/schema/prep";
 import { expenses } from "@/db/schema/expenses";
+import { recurringExpenses } from "@/db/schema/recurring";
+import { calculateRangeAllocatedCost } from "@/lib/recurringExpenseAllocation";
 import { and, eq, gte, lt, sql, inArray } from "drizzle-orm";
 import Link from "next/link";
 import { getExpensePresets, salesRangeFromParams, expenseRangeFromParams } from "@/lib/dateRange";
@@ -40,6 +42,8 @@ export default async function Page() {
   const erYesterday = expenseRangeFromParams(yesterday.start, yesterday.end);
   const erWeek = expenseRangeFromParams(thisWeek.start, thisWeek.end);
 
+  const allRecurringExpenses = await db.select().from(recurringExpenses);
+
   const revenueRowsToday = await db
     .select({ price: saleItems.totalPrice })
     .from(saleItems)
@@ -63,7 +67,8 @@ export default async function Page() {
     .from(expenses)
     .where(and(gte(expenses.expenseDate, erToday.startStr!), lt(expenses.expenseDate, erToday.endExclusiveStr!)));
   const expensesToday = expensesRowsToday.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
-  const profitToday = revenueToday - cogsToday - expensesToday;
+  const fixedToday = calculateRangeAllocatedCost(srToday.startDate!, srToday.endExclusiveDate!, allRecurringExpenses);
+  const profitToday = revenueToday - cogsToday - expensesToday - fixedToday;
 
   const revenueRowsYesterday = await db
     .select({ price: saleItems.totalPrice })
@@ -88,7 +93,8 @@ export default async function Page() {
     .from(expenses)
     .where(and(gte(expenses.expenseDate, erYesterday.startStr!), lt(expenses.expenseDate, erYesterday.endExclusiveStr!)));
   const expensesYesterday = expensesRowsYesterday.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
-  const profitYesterday = revenueYesterday - cogsYesterday - expensesYesterday;
+  const fixedYesterday = calculateRangeAllocatedCost(srYesterday.startDate!, srYesterday.endExclusiveDate!, allRecurringExpenses);
+  const profitYesterday = revenueYesterday - cogsYesterday - expensesYesterday - fixedYesterday;
 
   const settingsRows = await db.select().from(alertSettings).limit(1);
   const cfg = settingsRows[0] || {
@@ -103,6 +109,22 @@ export default async function Page() {
   const blockCount = Number(cfg.inventoryBlockCount) || 2;
 
   const insights: Insight[] = [];
+
+  if (fixedToday > 0) {
+    insights.push({
+      level: "info",
+      title: "Fixed Cost Allocation",
+      message: `Today includes ${fmtCurrencyNaira(fixedToday)} fixed cost allocation.`,
+    });
+    if (revenueToday < fixedToday) {
+       insights.push({
+         level: "warning",
+         title: "High Fixed Cost Pressure",
+         message: "Sales are not covering fixed expenses today.",
+       });
+    }
+  }
+
   if (profitYesterday > 0) {
     const pct = (profitToday - profitYesterday) / profitYesterday;
     if (pct <= -dropPctThreshold) {

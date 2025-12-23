@@ -20,6 +20,7 @@ async function createInventoryItem(
 
   const quantity = Number(quantityStr);
   const totalPurchaseCost = Number(totalCostStr);
+  const type = String(formData.get("type") || "RAW");
 
   if (!name || !unit) {
     return { error: "Name and Unit are required." };
@@ -61,23 +62,31 @@ async function createInventoryItem(
     // Display preferences (Stored but not used for display anymore)
     displayUnit: unit, // e.g. "kg"
     unitMultiplier, // e.g. 1000
+    type,
   });
 
   revalidatePath("/inventory");
-  redirect("/inventory");
+  redirect(`/inventory?type=${type}`);
 }
 
-export default function Page() {
+export default async function Page({
+  searchParams,
+}: {
+  searchParams?: Promise<{ type?: string }>;
+}) {
+  const params = await searchParams;
+  const type = (params?.type as "RAW" | "PACKAGING") || "RAW";
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">New Inventory Item</h1>
-        <Link className="text-primary underline hover:text-primary/80" href="/inventory">
-          Back to Inventory
+        <h1 className="text-2xl font-semibold">New {type === "PACKAGING" ? "Packaging" : "Inventory"} Item</h1>
+        <Link className="text-primary underline hover:text-primary/80" href={`/inventory?type=${type}`}>
+          Back to {type === "PACKAGING" ? "Packaging" : "Inventory"}
         </Link>
       </div>
 
-      <InventoryForm action={createInventoryItem} />
+      <InventoryForm action={createInventoryItem} type={type} />
     </div>
   );
 }

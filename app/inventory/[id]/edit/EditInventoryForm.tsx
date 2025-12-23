@@ -23,7 +23,7 @@ export default function EditInventoryForm({
   current,
   action,
 }: {
-  current: { id: string; name: string; unit: string; quantity: number; costPerUnit: number };
+  current: { id: string; name: string; unit: string; quantity: number; costPerUnit: number; type: string };
   action: (prevState: ActionState, formData: FormData) => Promise<ActionState>;
 }) {
   const [state, formAction] = useActionState<ActionState, FormData>(action, {});
@@ -45,6 +45,7 @@ export default function EditInventoryForm({
       )}
       <form action={formAction} className="space-y-3 max-w-lg">
         <input type="hidden" name="id" value={current.id} />
+        <input type="hidden" name="type" value={current.type} />
         <div>
           <label className="block text-sm font-medium">Name (Required)</label>
           <input
@@ -57,21 +58,28 @@ export default function EditInventoryForm({
         </div>
         <div>
           <label className="block text-sm font-medium">Unit (Required)</label>
-          <select
-            name="unit"
-            className="mt-1 w-full border border-input bg-background rounded px-4 py-2 lg:px-2 lg:py-1 outline-none focus:ring-2 focus:ring-ring focus:border-input transition-colors duration-150"
-            defaultValue={current.unit}
-            required
-          >
-            {availableUnits.map((u) => (
-              <option key={u.value} value={u.value}>
-                {u.label}
-              </option>
-            ))}
-            {!availableUnits.some(u => u.value === current.unit) && (
-               <option value={current.unit}>{current.unit}</option>
-            )}
-          </select>
+          {current.type === "PACKAGING" ? (
+             <div className="mt-1 w-full border border-input bg-muted text-muted-foreground rounded px-4 py-2 lg:px-2 lg:py-1">
+               {current.unit}
+               <input type="hidden" name="unit" value={current.unit} />
+             </div>
+          ) : (
+            <select
+              name="unit"
+              className="mt-1 w-full border border-input bg-background rounded px-4 py-2 lg:px-2 lg:py-1 outline-none focus:ring-2 focus:ring-ring focus:border-input transition-colors duration-150"
+              defaultValue={current.unit}
+              required
+            >
+              {availableUnits.map((u) => (
+                <option key={u.value} value={u.value}>
+                  {u.label}
+                </option>
+              ))}
+              {!availableUnits.some(u => u.value === current.unit) && (
+                 <option value={current.unit}>{current.unit}</option>
+              )}
+            </select>
+          )}
         </div>
         <div>
           <label className="block text-sm font-medium">Quantity (Read-only)</label>

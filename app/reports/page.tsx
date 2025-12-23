@@ -2,6 +2,8 @@ import { db } from "@/lib/db";
 import { sales, saleItems } from "@/db/schema/sales";
 import { inventoryItems, inventoryMovements } from "@/db/schema/inventory";
 import { expenses } from "@/db/schema/expenses";
+import { recurringExpenses } from "@/db/schema/recurring";
+import { calculateRangeAllocatedCost } from "@/lib/recurringExpenseAllocation";
 import { paymentMethods } from "@/db/schema/paymentMethods";
 import { paymentAllocations } from "@/db/schema/paymentAllocations";
 import Link from "next/link";
@@ -87,9 +89,16 @@ export default async function Page({
       )
     );
 
-  const totalExpenses = expenseRows.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+  const totalVariableExpenses = expenseRows.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
 
-  const netProfit = grossProfit - totalExpenses;
+  const allRecurringExpenses = await db.select().from(recurringExpenses);
+  const fixedExpensesAllocated = calculateRangeAllocatedCost(
+    startDate!,
+    endExclusiveDate!,
+    allRecurringExpenses
+  );
+
+  const netProfit = grossProfit - totalVariableExpenses - fixedExpensesAllocated;
 
   // Breakdown by payment method for sales
   // ... (Wait, the rest of the file logic for payment breakdown is not shown in my previous read, but I should preserve it)
@@ -110,7 +119,7 @@ export default async function Page({
         <DatePresets presets={presets} />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <div className="p-4 rounded-lg border bg-card text-card-foreground shadow-sm">
           <div className="text-sm text-muted-foreground">Total Revenue</div>
           <div className="text-2xl font-semibold">{formatCurrency(revenue)}</div>
@@ -120,8 +129,12 @@ export default async function Page({
           <div className="text-2xl font-semibold">{formatCurrency(cogs)}</div>
         </div>
         <div className="p-4 rounded-lg border bg-card text-card-foreground shadow-sm">
-          <div className="text-sm text-muted-foreground">Total Expenses</div>
-          <div className="text-2xl font-semibold">{formatCurrency(totalExpenses)}</div>
+          <div className="text-sm text-muted-foreground">Variable Expenses</div>
+          <div className="text-2xl font-semibold">{formatCurrency(totalVariableExpenses)}</div>
+        </div>
+        <div className="p-4 rounded-lg border bg-card text-card-foreground shadow-sm">
+          <div className="text-sm text-muted-foreground">Fixed Expenses (Allocated)</div>
+          <div className="text-2xl font-semibold">{formatCurrency(fixedExpensesAllocated)}</div>
         </div>
         <div className={`p-4 rounded-lg border shadow-sm ${netProfit >= 0 ? "border-success/20 bg-success/15 text-success" : "border-destructive/20 bg-destructive/15 text-destructive"}`}>
           <div className="text-sm">Net Profit</div>

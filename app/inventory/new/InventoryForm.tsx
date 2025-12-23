@@ -23,8 +23,10 @@ function SubmitButton() {
 
 export default function InventoryForm({
   action,
+  type = "RAW",
 }: {
   action: (prevState: ActionState, formData: FormData) => Promise<ActionState>;
+  type?: "RAW" | "PACKAGING";
 }) {
   const [state, formAction] = useActionState<ActionState, FormData>(action, {});
   const [qty, setQty] = useState<string>("");
@@ -32,6 +34,7 @@ export default function InventoryForm({
 
   return (
     <form action={formAction} className="space-y-3 max-w-lg">
+      <input type="hidden" name="type" value={type} />
       {state?.error && (
         <div className="border border-destructive/20 bg-destructive/10 text-destructive p-2 rounded">
           {state.error}
@@ -49,37 +52,46 @@ export default function InventoryForm({
       </div>
       <div>
         <label className="block text-sm font-medium">Unit (Required)</label>
-        <select
-          name="unit"
-          className="mt-1 w-full border border-input bg-background rounded px-4 py-2 lg:px-2 lg:py-1 outline-none focus:ring-2 focus:ring-ring focus:border-input transition-colors duration-150 placeholder:text-muted-foreground"
-          required
-          defaultValue=""
-        >
-          <option value="" disabled>
-            Select a unit...
-          </option>
-          <optgroup label="Weight">
-            {UNITS.filter((u) => u.category === "WEIGHT" && u.value === "g").map((u) => (
-              <option key={u.value} value={u.value}>
-                {u.label}
-              </option>
-            ))}
-          </optgroup>
-          <optgroup label="Volume">
-            {UNITS.filter((u) => u.category === "VOLUME" && u.value === "ml").map((u) => (
-              <option key={u.value} value={u.value}>
-                {u.label}
-              </option>
-            ))}
-          </optgroup>
-          <optgroup label="Count">
-            {UNITS.filter((u) => u.category === "COUNT" && u.value === "pcs").map((u) => (
-              <option key={u.value} value={u.value}>
-                {u.label}
-              </option>
-            ))}
-          </optgroup>
-        </select>
+        {type === "PACKAGING" ? (
+          <>
+            <input type="hidden" name="unit" value="pcs" />
+            <div className="mt-1 w-full border border-input bg-muted text-muted-foreground rounded px-4 py-2 lg:px-2 lg:py-1">
+              Pieces (pcs)
+            </div>
+          </>
+        ) : (
+          <select
+            name="unit"
+            className="mt-1 w-full border border-input bg-background rounded px-4 py-2 lg:px-2 lg:py-1 outline-none focus:ring-2 focus:ring-ring focus:border-input transition-colors duration-150 placeholder:text-muted-foreground"
+            required
+            defaultValue=""
+          >
+            <option value="" disabled>
+              Select a unit...
+            </option>
+            <optgroup label="Weight">
+              {UNITS.filter((u) => u.category === "WEIGHT" && u.value === "g").map((u) => (
+                <option key={u.value} value={u.value}>
+                  {u.label}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label="Volume">
+              {UNITS.filter((u) => u.category === "VOLUME" && u.value === "ml").map((u) => (
+                <option key={u.value} value={u.value}>
+                  {u.label}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label="Count">
+              {UNITS.filter((u) => u.category === "COUNT" && u.value === "pcs").map((u) => (
+                <option key={u.value} value={u.value}>
+                  {u.label}
+                </option>
+              ))}
+            </optgroup>
+          </select>
+        )}
       </div>
       <div>
         <label className="block text-sm font-medium">Quantity (Required)</label>

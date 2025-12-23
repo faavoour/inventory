@@ -20,6 +20,11 @@ export default function Page() {
       href: "/settings/expense-categories",
     },
     {
+      title: "Recurring Expenses",
+      description: "Manage fixed costs like rent and salaries.",
+      href: "/settings/recurring-expenses",
+    },
+    {
       title: "Alert Thresholds",
       description: "Control when business alerts are triggered.",
       href: "/settings/alert-thresholds",

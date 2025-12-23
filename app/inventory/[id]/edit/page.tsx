@@ -86,7 +86,7 @@ async function updateInventoryItem(
     .where(eq(inventoryItems.id, id));
 
   revalidatePath("/inventory");
-  redirect("/inventory");
+  redirect(`/inventory?type=${currentItem.type || "RAW"}`);
 }
 
 export default async function Page({
@@ -118,14 +118,15 @@ export default async function Page({
     unit: baseUnit,
     quantity: baseQty,
     costPerUnit: baseCost,
+    type: current.type || "RAW",
   };
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Edit Inventory Item</h1>
-        <Link className="text-primary underline hover:text-primary/80" href="/inventory">
-          Back to Inventory
+        <h1 className="text-2xl font-semibold">Edit {current.type === "PACKAGING" ? "Packaging" : "Inventory"} Item</h1>
+        <Link className="text-primary underline hover:text-primary/80" href={`/inventory?type=${current.type || "RAW"}`}>
+          Back to {current.type === "PACKAGING" ? "Packaging" : "Inventory"}
         </Link>
       </div>
       <EditInventoryForm current={displayData} action={updateInventoryItem} />

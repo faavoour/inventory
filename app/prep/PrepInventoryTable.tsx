@@ -7,14 +7,14 @@ import { formatCurrency, formatNumber } from "@/lib/format";
 import { PrepItemActions } from "./PrepItemActions";
 import React from "react";
 
-type PrepRecipeItem = {
+export type PrepRecipeItem = {
   inventoryItemName: string;
   inventoryItemUnit: string;
   requiredQuantity: number;
   cost: number;
 };
 
-type PrepItem = {
+export type PrepItem = {
   id: string;
   name: string;
   baseUnit: string;

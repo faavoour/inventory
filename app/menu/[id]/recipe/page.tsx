@@ -152,14 +152,14 @@ export default async function Page({
               name: i.name,
               unit: i.baseUnit || i.unit, // Use base unit only
               costPerUnit: i.costPerBaseUnit || i.costPerUnit,
-              type: "inventory",
+              type: i.type || "RAW",
             })),
             ...prep.map((p) => ({
               id: p.id,
               name: p.name,
               unit: p.baseUnit,
               costPerUnit: 0,
-              type: "prep",
+              type: "PREP",
             })),
           ]}
           menuItemId={id}
