@@ -16,9 +16,9 @@ export default async function Page() {
       menuItemId: recipeItems.menuItemId,
       unitCost: sql<number>`sum(
         CASE 
-          WHEN ${recipeItems.prepItemId} IS NOT NULL THEN
+          WHEN ${recipeItems.sourceType} = 'PREP' THEN
              COALESCE(${recipeItems.baseQuantity}, 0) * COALESCE(prep_inventory.cost_per_base_unit, 0)
-          WHEN ${recipeItems.inventoryItemId} IS NOT NULL THEN
+          WHEN ${recipeItems.sourceType} IN ('RAW', 'PACKAGING') THEN
              CASE
                WHEN ${recipeItems.baseQuantity} IS NOT NULL AND inventory_items.cost_per_base_unit IS NOT NULL 
                THEN ${recipeItems.baseQuantity} * inventory_items.cost_per_base_unit

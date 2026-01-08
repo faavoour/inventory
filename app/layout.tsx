@@ -42,6 +42,9 @@ export default function RootLayout({
               <Link className="block px-2 py-1 rounded hover:bg-accent hover:text-accent-foreground" href="/inventory">
                 Inventory
               </Link>
+              <Link className="block px-2 py-1 ml-4 text-sm text-muted-foreground hover:text-foreground" href="/inventory/daily-report">
+                Daily Report
+              </Link>
               <Link className="block px-2 py-1 rounded hover:bg-accent hover:text-accent-foreground" href="/menu">
                 Menu
               </Link>

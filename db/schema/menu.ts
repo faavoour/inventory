@@ -25,6 +25,7 @@ export const recipeItems = pgTable("recipe_items", {
     .references(() => inventoryItems.id, { onDelete: "restrict" }),
   prepItemId: uuid("prep_item_id")
     .references(() => prepItems.id, { onDelete: "restrict" }),
+  sourceType: text("source_type").notNull().default("RAW"),
   quantityRequired: doublePrecision("quantity_required").notNull(),
   unit: text("unit"), // Entered unit (e.g. "g" or "kg")
   unitMultiplier: doublePrecision("unit_multiplier").default(1),

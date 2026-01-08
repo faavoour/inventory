@@ -14,6 +14,8 @@ import DatePresets from "@/components/filters/DatePresets";
 type SortKey = "name" | "revenue" | "cogs" | "profit" | "margin";
 type SortDir = "asc" | "desc";
 
+import { prepInventory } from "@/db/schema/prep";
+
 export default async function Page({
   searchParams,
 }: {
@@ -87,10 +89,23 @@ export default async function Page({
   const menuUnitCosts = await db
     .select({
       menuItemId: recipeItems.menuItemId,
-      unitCost: sql<number>`sum(${recipeItems.quantityRequired} * ${inventoryItems.costPerUnit})`,
+      unitCost: sql<number>`sum(
+        CASE 
+          WHEN ${recipeItems.sourceType} = 'PREP' THEN
+             COALESCE(${recipeItems.baseQuantity}, 0) * COALESCE(${prepInventory.costPerBaseUnit}, 0)
+          WHEN ${recipeItems.sourceType} IN ('RAW', 'PACKAGING') THEN
+             CASE
+               WHEN ${recipeItems.baseQuantity} IS NOT NULL AND ${inventoryItems.costPerBaseUnit} IS NOT NULL 
+               THEN ${recipeItems.baseQuantity} * ${inventoryItems.costPerBaseUnit}
+               ELSE ${recipeItems.quantityRequired} * ${inventoryItems.costPerUnit}
+             END
+          ELSE 0
+        END
+      )`,
     })
     .from(recipeItems)
-    .innerJoin(inventoryItems, eq(recipeItems.inventoryItemId, inventoryItems.id))
+    .leftJoin(inventoryItems, eq(recipeItems.inventoryItemId, inventoryItems.id))
+    .leftJoin(prepInventory, eq(recipeItems.prepItemId, prepInventory.prepItemId))
     .groupBy(recipeItems.menuItemId);
   const unitCostByMenu = new Map<string, number>(
     menuUnitCosts.map((r) => [r.menuItemId as string, Number(r.unitCost) || 0])

@@ -18,7 +18,7 @@ export async function addRecipeItem(
 ): Promise<ActionState> {
   "use server";
   const menuId = String(formData.get("menuId") || "");
-  const itemType = String(formData.get("itemType") || ""); // 'inventory' or 'prep'
+  const sourceType = String(formData.get("sourceType") || "RAW");
   const itemId = String(formData.get("itemId") || "");
   const qtyStr = String(formData.get("quantityRequired") || "").trim();
   const quantityRequired = Number(qtyStr);
@@ -31,8 +31,9 @@ export async function addRecipeItem(
   let baseUnit = "";
   let inventoryItemId: string | null = null;
   let prepItemId: string | null = null;
+  let finalSourceType = sourceType;
 
-  if (itemType === "prep") {
+  if (finalSourceType === "PREP") {
     const prep = await db
       .select({ id: prepItems.id, baseUnit: prepItems.baseUnit })
       .from(prepItems)
@@ -42,7 +43,7 @@ export async function addRecipeItem(
     baseUnit = prep[0].baseUnit;
     prepItemId = itemId;
   } else {
-    // Default to inventory
+    // RAW or PACKAGING -> Inventory
     const inv = await db
       .select({ 
         id: inventoryItems.id,
@@ -52,9 +53,26 @@ export async function addRecipeItem(
       .from(inventoryItems)
       .where(eq(inventoryItems.id, itemId))
       .limit(1);
-    if (inv.length === 0) return { error: "Inventory item not found." };
-    baseUnit = inv[0].baseUnit || inv[0].unit;
-    inventoryItemId = itemId;
+    
+    if (inv.length > 0) {
+      baseUnit = inv[0].baseUnit || inv[0].unit;
+      inventoryItemId = itemId;
+    } else {
+      // Fallback: Check if it's actually a Prep Item (fixes "Inventory item not found" bug if UI sends RAW)
+      const prep = await db
+        .select({ id: prepItems.id, baseUnit: prepItems.baseUnit })
+        .from(prepItems)
+        .where(eq(prepItems.id, itemId))
+        .limit(1);
+      
+      if (prep.length > 0) {
+        baseUnit = prep[0].baseUnit;
+        prepItemId = itemId;
+        finalSourceType = "PREP";
+      } else {
+        return { error: "Inventory item not found." };
+      }
+    }
   }
 
   // Enforce base unit usage
@@ -66,6 +84,7 @@ export async function addRecipeItem(
     menuItemId: menuId,
     inventoryItemId,
     prepItemId,
+    sourceType: finalSourceType,
     quantityRequired,
     unit,
     unitMultiplier,

@@ -33,6 +33,8 @@ export default async function Page() {
       prepName: prepItems.name,
       prepBaseQuantity: prepInventory.baseQuantity,
       prepBaseUnit: prepItems.baseUnit,
+      // Source Type
+      sourceType: recipeItems.sourceType,
     })
     .from(recipeItems)
     .leftJoin(inventoryItems, eq(recipeItems.inventoryItemId, inventoryItems.id))
@@ -73,9 +75,9 @@ export default async function Page() {
       let inventoryUnit = "";
       let requiredUnit = "";
 
-      if (r.inventoryName) {
+      if (r.sourceType === 'RAW' || r.sourceType === 'PACKAGING') {
         // Inventory Item Logic
-        name = r.inventoryName;
+        name = r.inventoryName || "Unknown Inventory Item";
         // STRICT RULE: Use Base Units ONLY.
         requiredBase = Number(r.baseQuantity) || 0;
         availableBase = Number(r.inventoryBaseQuantity) || 0;
@@ -87,9 +89,9 @@ export default async function Page() {
         
         availableDisplay = formatBaseQuantity(availableBase, inventoryUnit);
 
-      } else if (r.prepName) {
+      } else if (r.sourceType === 'PREP') {
         // Prep Item Logic
-        name = r.prepName;
+        name = r.prepName || "Unknown Prep Item";
         // Prep items are tracked in base units
         requiredBase = Number(r.baseQuantity) || 0; // Already in base unit
         availableBase = Number(r.prepBaseQuantity) || 0; // Already in base unit

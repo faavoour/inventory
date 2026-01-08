@@ -98,6 +98,7 @@ export async function createSale(
     const recipesByMenu = new Map<string, Array<{ 
       inventoryItemId: string | null; 
       prepItemId: string | null;
+      sourceType: string;
       quantityRequired: number; 
       baseQuantity: number | null; 
       unit: string; 
@@ -111,6 +112,7 @@ export async function createSale(
       list.push({ 
         inventoryItemId: r.inventoryItemId, 
         prepItemId: r.prepItemId,
+        sourceType: r.sourceType,
         quantityRequired: r.quantityRequired, 
         baseQuantity: r.baseQuantity,
         unit: r.unit || "pcs",
@@ -175,7 +177,8 @@ export async function createSale(
     for (const p of pairs) {
       const ritems = recipesByMenu.get(p.id) ?? [];
       for (const r of ritems) {
-        if (r.inventoryItemId) {
+        if (r.sourceType === 'RAW' || r.sourceType === 'PACKAGING') {
+          if (!r.inventoryItemId) continue;
           const inv = invMap.get(r.inventoryItemId);
           if (!inv) continue; // Should not happen if data integrity is good
 
@@ -199,7 +202,8 @@ export async function createSale(
             reason: `Sale: ${nameById.get(p.id) ?? ""}`,
             type: "SALE",
           });
-        } else if (r.prepItemId) {
+        } else if (r.sourceType === 'PREP') {
+          if (!r.prepItemId) continue;
           const prep = prepMap.get(r.prepItemId);
           if (!prep) continue;
 
